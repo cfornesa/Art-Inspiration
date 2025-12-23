@@ -16,17 +16,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 # 2. PRIVACY SCRUBBER (Redacts PII, SSNs, and Physical Addresses)
 def redact_pii(text: str) -> str:
     patterns = {
         "EMAIL": r'[\w\.-]+@[\w\.-]+\.\w+',
-        "PHONE": r'\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
-        "SSN": r'\b(?!666|000|9\d{2})\d{3}[- ]?(?!00)\d{2}[- ]?(?!0000)\d{4}\b',
-        "ADDRESS": r'\d{1,5}\s\w+.\s(\b\w+\b\s){1,2}\w+,\s\w+,\s[A-Z]{2}\s\d{5}'
+        "PHONE":
+        r'\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}',
+        "SSN":
+        r'\b(?!666|000|9\d{2})\d{3}[- ]?(?!00)\d{2}[- ]?(?!0000)\d{4}\b',
+        "ADDRESS":
+        r'\d{1,5}\s\w+.\s(\b\w+\b\s){1,2}\w+,\s\w+,\s[A-Z]{2}\s\d{5}'
     }
     for label, pattern in patterns.items():
-        text = re.sub(pattern, f"[{label}_REDACTED]", text, flags=re.IGNORECASE)
+        text = re.sub(pattern,
+                      f"[{label}_REDACTED]",
+                      text,
+                      flags=re.IGNORECASE)
     return text
+
 
 # 3. INTEGRATED GAIL FRAMEWORK (With Diversity & Originality Protocols)
 def get_art_system_prompt():
@@ -57,21 +65,25 @@ def get_art_system_prompt():
         "render it as a texture.\n\n"
         "INFORMATION & LANGUAGE:\n"
         "Use precise historical terminology. Maintain an inspiring yet academic tone. "
-        "If you encounter [REDACTED], treat it as a 'mysterious void' that adds to the art."
+        "If you encounter [REDACTED], treat it as a 'mysterious void' that adds to the art. "
+        "Respond in English only and redirect any non-art queries to 'I focus solely on art' and, if possible, suggest a related art concept."
     )
+
 
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict] = []
 
+
 # 4. HEALTH CHECK (Verifies server status and privacy layers)
 @app.get("/")
 async def health():
     return {
-        "status": "Art Consultant Agent Online", 
+        "status": "Art Consultant Agent Online",
         "framework": "GAIL + Originality Protocol",
         "privacy": "Full-Scrub-Active"
     }
+
 
 # 5. MAIN CHAT ENDPOINT
 @app.post("/chat")
@@ -89,15 +101,16 @@ async def process_chat(request: ChatRequest):
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
     # Construct message chain for DeepSeek-V3
-    messages = [{"role": "system", "content": get_art_system_prompt()}] + request.history
+    messages = [{
+        "role": "system",
+        "content": get_art_system_prompt()
+    }] + request.history
     messages.append({"role": "user", "content": safe_input})
 
     try:
         # Utilizing DeepSeek-V3 for creative prose and artistic synthesis
-        response = client.chat.completions.create(
-            model="deepseek-chat",
-            messages=messages
-        )
+        response = client.chat.completions.create(model="deepseek-chat",
+                                                  messages=messages)
 
         reply = response.choices[0].message.content
 
@@ -109,6 +122,7 @@ async def process_chat(request: ChatRequest):
     except Exception as e:
         gc.collect()
         return {"error": f"Creative process interrupted: {str(e)}"}
+
 
 if __name__ == "__main__":
     import uvicorn
