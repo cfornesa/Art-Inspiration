@@ -28,47 +28,47 @@ def redact_pii(text: str) -> str:
         text = re.sub(pattern, f"[{label}_REDACTED]", text, flags=re.IGNORECASE)
     return text
 
-# 3. INTEGRATED GAIL FRAMEWORK (With Language & Scope Safeguards)
+# 3. INTEGRATED GAIL FRAMEWORK (Recalibrated with Word Limit & Synthesis)
 def get_art_system_prompt():
     """
-    GOALS: Empower artists to overcome blocks with sophisticated, high-concept prompts.
+    GOALS: Empower artists with a synthesized balance of theory and technique.
     ACTIONS: 
-        - Provide three 'vibes': Experimental, Classical, or Abstract.
-        - DIVERSITY PROTOCOL: Pull inspiration from non-Western canons (e.g., Islamic geometry, Wabi-sabi).
-        - SCOPE GUARD: If a query is unrelated to art, aesthetics, or creativity, refuse by saying: 
-          'I focus solely on art,' and then pivot to a related artistic concept.
+        - SYNTHESIS MANDATE: For dual 'Why' and 'How' queries, follow: Context -> Bridge -> Technique.
+        - SCOPE GUARD: Refuse non-art queries with 'I focus solely on art' and pivot.
     INFORMATION: 
-        - Reference global art history and technical terminology (Sfumato, Impasto).
-        - Respect [REDACTED] placeholders.
+        - Reference Art History as a technical bridge.
+        - DATA DISTINCTION: Distinguish between 'artistic redaction' and data privacy.
     LANGUAGE: 
         - STRICTURE: RESPOND IN ENGLISH ONLY. 
-        - TONE: Poetic, encouraging, intellectually sophisticated, and non-judgmental.
+        - WORD LIMIT: Maintain executive conciseness. Responses should not exceed 300-400 words.
+        - TONE: Professional, instructional, and academic.
     """
     return (
-        "You are an Expert Art Consultant and Historian. YOU MUST RESPOND IN ENGLISH ONLY.\n\n"
+        "You are an Expert Art Consultant. YOU MUST RESPOND IN ENGLISH ONLY.\n\n"
         "GOALS:\n"
-        "Help the artist navigate creative exhaustion by providing rigorous and diverse inspiration.\n\n"
-        "ACTIONS:\n"
-        "1. Identify and bypass Western-centric cliches. Focus on 'Wabi-sabi' or 'Horror Vacui'.\n"
-        "2. Synthesis: Combine unrelated concepts (e.g., 'Biomorphic architecture' meets 'Byzantine gold-leaf').\n"
-        "3. SCOPE CONTROL: If the user asks about non-art topics (politics, math, general chat), "
-        "state 'I focus solely on art' and suggest a related art concept to pivot the conversation.\n\n"
+        "Provide synthesized expertise with extreme density and clarity.\n\n"
+        "ACTIONS (SYNTHESIS & SCOPE):\n"
+        "1. DUAL-INTENT: If both Why and How are present, provide a single cohesive response "
+        "covering (A) History, (B) Material Properties, and (C) Application steps.\n"
+        "2. TECHNICAL FOCUS: Specify archival materials (pH-neutral, lightfastness) in every process.\n"
+        "3. SCOPE CONTROL: For non-art topics, state 'I focus solely on art' and pivot to art.\n\n"
         "INFORMATION:\n"
-        "Use precise historical terminology. Treat [REDACTED] as a 'mysterious void' that adds to the art.\n\n"
-        "LANGUAGE:\n"
-        "Maintain an inspiring yet academic tone. STRICTLY ENGLISH RESPONSES ONLY."
+        "Use technical terms accurately. Treat 'Redaction' as a conceptual topic. Use bullet points.\n\n"
+        "LANGUAGE (WORD LIMIT & TONE):\n"
+        "Maintain EXECUTIVE CONCISCENESS. Keep responses dense but brief (under 400 words). "
+        "Avoid fluff. STRICTLY ENGLISH ONLY."
     )
 
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict] = []
 
-# 4. HEALTH CHECK (Verifies server status and privacy layers)
+# 4. HEALTH CHECK
 @app.get("/")
 async def health():
     return {
         "status": "Art Consultant Agent Online",
-        "framework": "GAIL + Originality Protocol",
+        "framework": "GAIL + Synthesis + Word Limit",
         "privacy": "Full-Scrub-Active"
     }
 
@@ -77,16 +77,14 @@ async def health():
 async def process_chat(request: ChatRequest):
     from openai import OpenAI
 
-    # Redact input locally
     safe_input = redact_pii(request.message)
 
     api_key = os.environ.get('DEEPSEEK_API_KEY')
     if not api_key:
-        return {"error": "DeepSeek API Key missing in Replit Secrets."}
+        return {"error": "DeepSeek API Key missing."}
 
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
-    # Construct message chain
     messages = [{"role": "system", "content": get_art_system_prompt()}] + request.history
     messages.append({"role": "user", "content": safe_input})
 
@@ -94,20 +92,18 @@ async def process_chat(request: ChatRequest):
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
-            # Lowering temperature slightly to increase instruction following
-            temperature=0.7
+            temperature=0.6,
+            # Hard token limit at the API level as a backup for the word limit
+            max_tokens=800 
         )
 
         reply = response.choices[0].message.content
-
-        # 6. MEMORY MANAGEMENT (GARBAGE COLLECTION)
         del messages, safe_input
         gc.collect()
-
         return {"reply": reply}
     except Exception as e:
         gc.collect()
-        return {"error": f"Creative process interrupted: {str(e)}"}
+        return {"error": f"Error: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
