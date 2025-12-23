@@ -8,7 +8,7 @@ from typing import List, Dict
 
 app = FastAPI(title="Art Inspiration Agent")
 
-# 1. CORS CONFIGURATION
+# 1. CORS CONFIGURATION (Essential for Replit to Hostinger communication)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,47 +28,48 @@ def redact_pii(text: str) -> str:
         text = re.sub(pattern, f"[{label}_REDACTED]", text, flags=re.IGNORECASE)
     return text
 
-# 3. INTEGRATED GAIL FRAMEWORK (Recalibrated with Word Limit & Synthesis)
+# 3. INTEGRATED GAIL FRAMEWORK (Synthesis & Conciseness Protocol)
 def get_art_system_prompt():
     """
-    GOALS: Empower artists with a synthesized balance of theory and technique.
+    GOALS: Provide synthesized art expertise balancing context and studio application.
     ACTIONS: 
         - SYNTHESIS MANDATE: For dual 'Why' and 'How' queries, follow: Context -> Bridge -> Technique.
-        - SCOPE GUARD: Refuse non-art queries with 'I focus solely on art' and pivot.
+        - SCOPE GUARD: If a query is unrelated to art, refuse with 'I focus solely on art.'
+        - PIVOT: Always follow a refusal with a specific artistic suggestion (e.g., archival collage).
     INFORMATION: 
-        - Reference Art History as a technical bridge.
-        - DATA DISTINCTION: Distinguish between 'artistic redaction' and data privacy.
+        - Reference Art History only as a conceptual anchor for technical methods.
+        - Use specific archival terminology (pH-neutral, lightfastness, substrates).
     LANGUAGE: 
         - STRICTURE: RESPOND IN ENGLISH ONLY. 
-        - WORD LIMIT: Maintain executive conciseness. Responses should not exceed 300-400 words.
-        - TONE: Professional, instructional, and academic.
+        - CONCISCENESS: Maintain executive brevity; responses should not exceed 400 words.
+        - TONE: Professional, instructional, and scholarly.
     """
     return (
         "You are an Expert Art Consultant. YOU MUST RESPOND IN ENGLISH ONLY.\n\n"
         "GOALS:\n"
-        "Provide synthesized expertise with extreme density and clarity.\n\n"
+        "Provide dense, actionable, and synthesized expertise. Transition from theory to studio practice.\n\n"
         "ACTIONS (SYNTHESIS & SCOPE):\n"
-        "1. DUAL-INTENT: If both Why and How are present, provide a single cohesive response "
-        "covering (A) History, (B) Material Properties, and (C) Application steps.\n"
-        "2. TECHNICAL FOCUS: Specify archival materials (pH-neutral, lightfastness) in every process.\n"
-        "3. SCOPE CONTROL: For non-art topics, state 'I focus solely on art' and pivot to art.\n\n"
+        "1. DUAL-INTENT HANDLING: If both Why and How are present, provide a single cohesive response "
+        "covering (A) Conceptual Context, (B) Material Properties, and (C) Technical Application.\n"
+        "2. TECHNICAL PRECISION: Specify archival standards and material chemistry in every process.\n"
+        "3. SCOPE CONTROL: For non-art topics, state 'I focus solely on art' and pivot to a technique.\n\n"
         "INFORMATION:\n"
-        "Use technical terms accurately. Treat 'Redaction' as a conceptual topic. Use bullet points.\n\n"
-        "LANGUAGE (WORD LIMIT & TONE):\n"
-        "Maintain EXECUTIVE CONCISCENESS. Keep responses dense but brief (under 400 words). "
-        "Avoid fluff. STRICTLY ENGLISH ONLY."
+        "Treat 'Redaction' as a conceptual artistic topic. Use bullet points for material lists.\n\n"
+        "LANGUAGE (WORD LIMIT):\n"
+        "Maintain EXECUTIVE CONCISCENESS. Keep responses high-density and under 400 words. "
+        "STRICTLY ENGLISH ONLY."
     )
 
 class ChatRequest(BaseModel):
     message: str
     history: List[Dict] = []
 
-# 4. HEALTH CHECK
+# 4. HEALTH CHECK (Verifies server status and privacy layers)
 @app.get("/")
 async def health():
     return {
         "status": "Art Consultant Agent Online",
-        "framework": "GAIL + Synthesis + Word Limit",
+        "framework": "GAIL + Synthesis + Conciseness",
         "privacy": "Full-Scrub-Active"
     }
 
@@ -77,14 +78,16 @@ async def health():
 async def process_chat(request: ChatRequest):
     from openai import OpenAI
 
+    # Redact input locally to ensure privacy
     safe_input = redact_pii(request.message)
 
     api_key = os.environ.get('DEEPSEEK_API_KEY')
     if not api_key:
-        return {"error": "DeepSeek API Key missing."}
+        return {"error": "DeepSeek API Key missing in Replit Secrets."}
 
     client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
 
+    # Construct message chain
     messages = [{"role": "system", "content": get_art_system_prompt()}] + request.history
     messages.append({"role": "user", "content": safe_input})
 
@@ -92,19 +95,23 @@ async def process_chat(request: ChatRequest):
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=messages,
+            # Temperature 0.6 ensures a balance of logic and creative synthesis
             temperature=0.6,
-            # Hard token limit at the API level as a backup for the word limit
-            max_tokens=800 
+            max_tokens=900
         )
 
         reply = response.choices[0].message.content
+
+        # 6. MEMORY MANAGEMENT (GARBAGE COLLECTION)
         del messages, safe_input
         gc.collect()
+
         return {"reply": reply}
     except Exception as e:
         gc.collect()
-        return {"error": f"Error: {str(e)}"}
+        return {"error": f"Process interrupted: {str(e)}"}
 
 if __name__ == "__main__":
     import uvicorn
+    # Optimized run for Replit
     uvicorn.run(app, host="0.0.0.0", port=5000)
