@@ -1,6 +1,7 @@
 import os
 import re
 import gc
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -66,13 +67,11 @@ async def process_chat(request: ChatRequest):
     from openai import OpenAI
 
     safe_input = redact_pii(request.message)
-    # Ensure you set MISTRAL_API_KEY in your Replit/Environment Secrets
     api_key = os.environ.get('MISTRAL_API_KEY')
 
     if not api_key:
         return {"error": "Mistral API Key missing in environment variables."}
 
-    # Mistral's API is OpenAI-compatible. Use the standard v1 endpoint.
     client = OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
 
     messages = [{"role": "system", "content": get_art_system_prompt()}] + request.history
@@ -80,10 +79,9 @@ async def process_chat(request: ChatRequest):
 
     try:
         response = client.chat.completions.create(
-            # Using the 14B Reasoning model for high-integrity studio advice
-            model="ministral-14b-reasoning-2512",
+            model="ministral-14b-2512", # Updated model string for 14B
             messages=messages,
-            temperature=0.15, # Lower temperature for higher technical precision
+            temperature=0.15,
             max_tokens=900
         )
 
@@ -98,6 +96,11 @@ async def process_chat(request: ChatRequest):
         gc.collect()
         return {"error": str(e)}
 
+# 5. REPLIT DEPLOYMENT CONFIGURATION
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    # Dynamically find the port Replit assigned
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Server starting on port {port}...")
+
+    # Run uvicorn as a string to allow for stable process management
+    uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
