@@ -10,6 +10,7 @@ from typing import List, Dict
 app = FastAPI(title="Art Inspiration Agent - Mistral Edition")
 
 # 1. CORS PROTOCOL (Digital Handshake)
+# Essential for allowing your website frontend to communicate with this Replit backend.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,6 +19,7 @@ app.add_middleware(
 )
 
 # 2. PRIVACY SCRUBBER (PII Sanitization)
+# Complies with your mission to protect user data from being unethically used by LLMs.
 PII_PATTERNS = {
     "EMAIL": re.compile(r'[\w\.-]+@[\w\.-]+\.\w+', re.IGNORECASE),
     "PHONE": re.compile(r'\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}'),
@@ -31,6 +33,7 @@ def redact_pii(text: str) -> str:
     return text
 
 # 3. GAIL ART SYNTHESIS PROMPT
+# Structured to provide MFA-level studio advice with archival precision.
 def get_art_system_prompt():
     return (
         "You are an Expert Art Consultant. YOU MUST RESPOND IN ENGLISH ONLY.\n\n"
@@ -50,15 +53,16 @@ class ChatRequest(BaseModel):
     message: str
     history: List[Dict] = []
 
-# --- UPDATED: HEALTH CHECK ROUTE ---
+# --- HEALTH CHECK ROUTE ---
+# Prevents Replit Deployment termination by acknowledging the 'ping'.
 @app.get("/")
 async def health_check():
     return {
         "status": "online", 
         "agent": "Art Inspiration Agent",
-        "system_version": "1.1.0",
+        "system_version": "1.1.1",
         "provider": "Mistral AI",
-        "model": "ministral-14b-reasoning-2512"
+        "model": "ministral-14b-2512"
     }
 
 # 4. MAIN API ENDPOINT (/chat)
@@ -66,41 +70,48 @@ async def health_check():
 async def process_chat(request: ChatRequest):
     from openai import OpenAI
 
+    # Local Redaction before the data leaves the Replit environment
     safe_input = redact_pii(request.message)
     api_key = os.environ.get('MISTRAL_API_KEY')
 
     if not api_key:
-        return {"error": "Mistral API Key missing in environment variables."}
+        return {"reply": "Error: MISTRAL_API_KEY is not configured in server secrets."}
 
+    # Mistral uses /v1 for its OpenAI-compatible endpoint
     client = OpenAI(api_key=api_key, base_url="https://api.mistral.ai/v1")
 
+    # Combine instructions, history, and the new sanitized query
     messages = [{"role": "system", "content": get_art_system_prompt()}] + request.history
     messages.append({"role": "user", "content": safe_input})
 
     try:
+        # Utilizing the 14B Reasoning model for high-integrity studio advice
         response = client.chat.completions.create(
-            model="ministral-14b-2512", # Updated model string for 14B
+            model="ministral-14b-latest", 
             messages=messages,
-            temperature=0.15,
+            temperature=0.15, 
             max_tokens=900
         )
 
-        reply = response.choices[0].message.content
+        # Explicitly extract the text to ensure the frontend receives a clean string
+        reply_content = response.choices[0].message.content
 
-        # Explicit memory cleanup
+        # Cleanup memory for Replit's efficiency
         del messages, safe_input
         gc.collect()
 
-        return {"reply": reply}
+        return {"reply": reply_content.strip()}
+
     except Exception as e:
         gc.collect()
-        return {"error": str(e)}
+        # Returns the error as the 'reply' so it shows up in the Chat Window
+        return {"reply": f"System Error: {str(e)}"}
 
-# 5. REPLIT DEPLOYMENT CONFIGURATION
+# 5. REPLIT PRODUCTION RUNNER
 if __name__ == "__main__":
-    # Dynamically find the port Replit assigned
+    # Dynamically find the port assigned by Replit (Deployment or Workspace)
     port = int(os.environ.get("PORT", 5000))
     print(f"Server starting on port {port}...")
 
-    # Run uvicorn as a string to allow for stable process management
+    # Using the string "main:app" allows for hot-reloads and better process management
     uvicorn.run("main:app", host="0.0.0.0", port=port, log_level="info")
