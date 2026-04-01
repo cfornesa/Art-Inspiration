@@ -38,3 +38,8 @@ ENV/
 
 # Logs
 *.log
+
+# Node
+node_modules/
+server.bundle.js
+package-lock.json
